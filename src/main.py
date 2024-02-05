@@ -9,7 +9,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Simulador de Procesos por Lotes")
-        self.setFixedSize(600, 800)
+        self.setFixedSize(300, 400)
         self.creatUI()
 
     def creatUI(self):
@@ -45,16 +45,16 @@ class MainWindow(QMainWindow):
         #Numero de procesos a crear
         self.nprocesos = self.spn_nprocesos.value()
 
-        #Nombre del programador
+        #Nombre del proceso
         self.hlyt_nombre = QHBoxLayout()
-        self.lbl_nombre = QLabel("Nombre del programador: ")
+        self.lbl_nombre = QLabel("Nombre: ")
         self.txt_nombre = QLineEdit()
 
         #Operacion a realizar
         self.hlyt_operacion = QHBoxLayout()
         self.lbl_operacion = QLabel("Operacion a realizar ")
         self.txt_operacion = QComboBox()
-        self.txt_operacion.addItems(["+", "-", "*", "/", "%", "**"])
+        self.txt_operacion.addItems(["+", "-", "*", "/", "%", "^"])
         #Numeros a operar
         self.val_num1 = QLineEdit()
         self.val_num1.setValidator(QDoubleValidator())
@@ -63,7 +63,7 @@ class MainWindow(QMainWindow):
 
         #Tiempo Maximo Estimado (Mayor a 0)
         self.hlyt_time = QHBoxLayout()
-        self.lbl_time = QLabel("Tiempo máximo estimado (segundos): ")
+        self.lbl_time = QLabel("Tiempo estimado (segundos): ")
         self.value_time = QSpinBox()
         self.value_time.setRange(1, 1000)
         self.value_time.setValue(1)
@@ -140,60 +140,63 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "Verifique que no tenga campos vacios", QMessageBox.Ok)
 
     def executeProcess(self):
-        #dividir lotes en grupos de 4
-        if len(self.procesos) < 4:
-            lote = self.procesos
-            self.lotes = [lote]
-        else:
-            self.lotes = []
-            self.lote = []
-            for proceso in self.procesos:
-                if len(self.lote) < 4:
-                    self.lote.append(proceso)
-                else:
-                    self.lotes.append(self.lote)
-                    self.lote = []
-                    self.lote.append(proceso)
-
-        lote_en_ejecucion = 0
-        lotes_pendientes = len(self.lotes)
-
+        lotes = []
+        lote = []
+        for proceso in self.procesos:
+            lote.append(proceso)
+            if len(lote) == 4:
+                lotes.append(lote)
+                lote = []
+        if lote:
+            lotes.append(lote)
+        
+        lote_en_ejecucion = 1
+        lotes_pendientes = len(lotes) - 1
         procesos_terminados = []
 
-        #ejecutar procesos por lotes
-        while lote_en_ejecucion < len(self.lotes):
-            if procesos_terminados != []:
-                print("Procesos terminados: ")
-                for proceso in procesos_terminados:
-                    print("Numero de programa: ", proceso["id"])
-                    print("Operacion: ", proceso["operacion"])
-                    print("Resultado: ", resultado)
-            print("Lote: ", lote_en_ejecucion)
-            print("Lotes pendientes: ", lotes_pendientes)
-            print("--------------------------------------------------")
-            for proceso in self.lotes[lote_en_ejecucion]:
-                print("Numero de programa: ", proceso["id"])
-                print("Tiempo Maximo Estimado: ", proceso["tiempo"])
-
-            #ejecutar procesos del lote
-            for proceso in self.lotes[lote_en_ejecucion]:
+        reloj_global = 0
+        for lote in lotes:
+            for proceso in lote:
+                # mostramos el tiempo transcurrido
                 tiempo_transcurrido = 0
-                tiempo_restante = proceso["tiempo"]
-                print("Nombre del programador: ", proceso["nombre"])
-                print("Operacion a realizar: ", proceso["operacion"])
-                print("Tiempo Maximo Estimado: ", proceso["tiempo"])
-                print("ID del proceso: ", proceso["id"])
-                print("Tiempo transcurrido: ", tiempo_transcurrido)
-                print("Tiempo restante: ", tiempo_restante)
-                time.sleep(proceso["tiempo"])
-                resultado = eval(proceso["operacion"])
-                print("Resultado:", resultado)
-                print("--------------------------------------------------")
-                procesos_terminados.append(proceso)
+                tiempo_restante = proceso['tiempo']
+                resultado = eval(proceso['operacion'])
+                for i in range(proceso['tiempo']):
+                    print(f"Procesando lote {lote_en_ejecucion}")
+                    print(f"Lotes Pendites: {lotes_pendientes}")
+                    print("=============================================")
+                    print(f"Ejecutando proceso")
+                    print(f"Nombre: {proceso['nombre']}")
+                    print(f"ID: {proceso['id']}")
+                    print(f"Operacion: {proceso['operacion']}")
+                    print(f"Tiempo estimado: {proceso['tiempo']} segundos")
+                    print(f"Tiempo transcurrido: {tiempo_transcurrido} segundos")
+                    tiempo_transcurrido += 1
+                    reloj_global += 1
+                    tiempo_restante -= 1
+                    print(f"Tiempo restante: {tiempo_restante} segundos")
+                    print(f"Procesos terminados:")
+                    # imprimir todos los procesos terminados en tabla
+                    print("\tID\t| Operacion\t|Resultado\t\n")
+                    print("==========================================================================================")
+                    for proceso_t in procesos_terminados:
+                        print(f"\t{proceso_t['id']}\t|{proceso_t['operacion']}\t|{proceso_t['resultado']}\t\n")
+                        print("==========================================================================================")
+                    print(f"Reloj Global: {reloj_global} segundos")
+                    print("=============================================")
+                    time.sleep(1)
+                    os.system("clear")
+                
+                procesos_terminados.append({
+                    "id": proceso['id'],
+                    "operacion": proceso['operacion'],
+                    "resultado": resultado
+                })
             lote_en_ejecucion += 1
-            #Limpiar pantalla
-            os.system("cls")
-            print("--------------------------------------------------")
+            lotes_pendientes -= 1
+
+        print("Presione Enter para continuar")
+        input()
 
 
 if __name__ == "__main__":
