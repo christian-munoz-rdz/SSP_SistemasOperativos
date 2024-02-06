@@ -124,7 +124,7 @@ class ExecuteProcessWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(' Procesamiento por Lotes')
         self.procesos = procesos
-        self.setFixedSize(350, 600)
+        self.setFixedSize(700, 600)
         self.divideInBatches()
         self.initUI()
 
@@ -133,7 +133,9 @@ class ExecuteProcessWindow(QMainWindow):
         # Contenedor central y layout
         centralWidget = QWidget(self)
         self.setCentralWidget(centralWidget)
-        layout = QVBoxLayout(centralWidget)
+        currentProcesVlayout = QVBoxLayout()
+        self.currentBatchVlayout = QVBoxLayout()
+        globalHlayout = QHBoxLayout(centralWidget)
 
         # Etiquetas para mostrar información
         self.batchLabel = QLabel("Lote Actual:  | Lotes Pendientes: ", self)
@@ -141,13 +143,14 @@ class ExecuteProcessWindow(QMainWindow):
         self.currentProcessNameLabel = QLabel("Nombre: Proceso: ", self)
         self.currentProcessIdLabel = QLabel("ID: ", self)
         self.currentProcessOperationLabel = QLabel("Operación: ", self)
+        self.currentProcessTimeLabel = QLabel("Tiempo estimado: ", self)
         self.elapsedTimeLabel = QLabel("Tiempo Transcurrido de Proceso: ", self)
         self.remainingTimeLabel = QLabel("Tiempo Restante de Proceso: ", self)
         self.globalTimeLabel = QLabel("Reloj Global: 0", self)
 
         # Tabla para mostrar los procesos terminados
-        self.finishedProcessTable = QTableWidget(0, 3, self)
-        self.finishedProcessTable.setHorizontalHeaderLabels(["ID", "Operación", "Resultado"])
+        self.finishedProcessTable = QTableWidget(0, 4, self)
+        self.finishedProcessTable.setHorizontalHeaderLabels(["ID", "Operación", "Resultado", ""]) #La ultima columna es para marcar el inicio de un nuevo lote
         self.finishedProcessTable.verticalHeader().setVisible(False)
         self.finishedProcessTable.setRowCount(0)
 
@@ -156,16 +159,27 @@ class ExecuteProcessWindow(QMainWindow):
         self.finishedButton.clicked.connect(self.close)
 
         # Añadir widgets al layout
-        layout.addWidget(self.batchLabel)
-        layout.addWidget(self.currentProcessLabel)
-        layout.addWidget(self.currentProcessNameLabel)
-        layout.addWidget(self.currentProcessIdLabel)
-        layout.addWidget(self.currentProcessOperationLabel)
-        layout.addWidget(self.elapsedTimeLabel)
-        layout.addWidget(self.remainingTimeLabel)
-        layout.addWidget(self.globalTimeLabel)
-        layout.addWidget(self.finishedProcessTable)
-        layout.addWidget(self.finishedButton)
+        currentProcesVlayout.addWidget(self.batchLabel)
+        currentProcesVlayout.addWidget(self.currentProcessLabel)
+        currentProcesVlayout.addWidget(self.currentProcessNameLabel)
+        currentProcesVlayout.addWidget(self.currentProcessIdLabel)
+        currentProcesVlayout.addWidget(self.currentProcessOperationLabel)
+        currentProcesVlayout.addWidget(self.currentProcessTimeLabel)
+        currentProcesVlayout.addWidget(self.elapsedTimeLabel)
+        currentProcesVlayout.addWidget(self.remainingTimeLabel)
+        currentProcesVlayout.addWidget(self.globalTimeLabel)
+        currentProcesVlayout.addWidget(self.finishedProcessTable)
+        currentProcesVlayout.addWidget(self.finishedButton)
+
+        #Datos de Lote en Ejecución
+        self.currentBatchList = QLabel("Procesos pendientes en el lote Actual: ", self)
+
+        self.currentBatchVlayout.addWidget(self.currentBatchList)
+
+        # Añadir layout al contenedor central
+        globalHlayout.addLayout(currentProcesVlayout)
+        globalHlayout.addLayout(self.currentBatchVlayout)
+        centralWidget.setLayout(globalHlayout)
 
         #ocultamos el boton de finalizar
         self.finishedButton.hide()
@@ -185,6 +199,8 @@ class ExecuteProcessWindow(QMainWindow):
         self.elapsedTime = 0
         self.remainingTime = self.current_process['tiempo']
 
+        for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+            self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
     def updateProcess(self):
         self.globalTime += 1
         self.elapsedTime += 1
@@ -196,16 +212,25 @@ class ExecuteProcessWindow(QMainWindow):
         self.currentProcessNameLabel.setText(f"Nombre: {self.current_process['nombre']}")
         self.currentProcessIdLabel.setText(f"ID: {self.current_process['id']}")
         self.currentProcessOperationLabel.setText(f"Operación: {self.current_process['operacion']}")
+        self.currentProcessTimeLabel.setText(f"Tiempo estimado: {self.current_process['tiempo']}")
 
         if self.remainingTime == 0:
+            self.currentBatchList.setText("Procesos pendientes en el lote Actual: ")
             rowPosition = self.finishedProcessTable.rowCount()
             self.finishedProcessTable.insertRow(rowPosition)
             self.finishedProcessTable.setItem(rowPosition, 0, QTableWidgetItem(str(self.current_process['id'])))
             self.finishedProcessTable.setItem(rowPosition, 1, QTableWidgetItem(self.current_process['operacion']))
             self.finishedProcessTable.setItem(rowPosition, 2, QTableWidgetItem(str(eval(self.current_process['operacion']))))
+            if self.currentProcessIndex == 0:
+                self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Inicio de Lote"))
+            elif self.currentProcessIndex == len(self.lotes[self.currentBatch]) - 1:
+                self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Fin de Lote"))
+
             if self.currentProcessIndex < len(self.lotes[self.currentBatch]) - 1:
                 self.currentProcessIndex += 1
                 self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
+                for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+                    self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
                 self.elapsedTime = 0
                 self.remainingTime = self.current_process['tiempo']
             else:
@@ -214,6 +239,8 @@ class ExecuteProcessWindow(QMainWindow):
                 if self.currentBatch < len(self.lotes):
                     self.currentProcessIndex = 0
                     self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
+                    for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+                        self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
                     self.elapsedTime = 0
                     self.remainingTime = self.current_process['tiempo']
                 else:
