@@ -1,5 +1,4 @@
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QLabel, QPushButton, QVBoxLayout, QWidget,
-                             QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem)
+from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QVBoxLayout, QWidget,QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem
 from PyQt5.QtCore import QTimer, Qt
 import random
 import sys
@@ -152,104 +151,94 @@ class ExecuteProcessWindow(QMainWindow):
         self.currentProcessTimeLabel.setText(f"Tiempo estimado: {self.current_process['tiempo']}")
 
     def updateTableAndQueue(self): #Actualiza la tabla de procesos terminados y la lista de procesos pendientes
-        if self.remainingTime == 0:
+        if self.remainingTime == 0: #Si el proceso ha terminado
             self.currentBatchList.setText("Procesos pendientes en el lote Actual: ")
-            rowPosition = self.finishedProcessTable.rowCount()
-            self.finishedProcessTable.insertRow(rowPosition)
-            self.finishedProcessTable.setItem(rowPosition, 0, QTableWidgetItem(str(self.current_process['id'])))
-            self.finishedProcessTable.setItem(rowPosition, 1, QTableWidgetItem(self.current_process['operacion']))
-            self.finishedProcessTable.setItem(rowPosition, 2, QTableWidgetItem(str(eval(self.current_process['operacion']))))
-            if self.currentProcessIndex == 0:
+            rowPosition = self.finishedProcessTable.rowCount() #Fila en la que se insertará el proceso terminado
+            self.finishedProcessTable.insertRow(rowPosition) #Inserta una fila en la tabla
+            self.finishedProcessTable.setItem(rowPosition, 0, QTableWidgetItem(str(self.current_process['id']))) #Añade el id del proceso
+            self.finishedProcessTable.setItem(rowPosition, 1, QTableWidgetItem(self.current_process['operacion'])) #Añade la operación del proceso
+            self.finishedProcessTable.setItem(rowPosition, 2, QTableWidgetItem(str(eval(self.current_process['operacion'])))) #Añade el resultado del proceso
+
+            if self.currentProcessIndex == 0: #Si el proceso es el primero del lote
                 self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Inicio de Lote"))
-            elif self.currentProcessIndex == len(self.lotes[self.currentBatch]) - 1:
+            elif self.currentProcessIndex == len(self.lotes[self.currentBatch]) - 1: #Si el proceso es el último del lote
                 self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Fin de Lote"))
 
-            if self.currentProcessIndex < len(self.lotes[self.currentBatch]) - 1:
-                self.currentProcessIndex += 1
-                self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
-                for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+            if self.currentProcessIndex < len(self.lotes[self.currentBatch]) - 1: #Si hay procesos pendientes en el lote
+                self.currentProcessIndex += 1 #Aumenta el índice del proceso actual
+                self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex] #Cambia el proceso actual
+                for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]: #Muestra los procesos pendientes del lote
                     self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
-                self.elapsedTime = 0
-                self.remainingTime = self.current_process['tiempo']
-            else:
-                self.currentBatch += 1
-                self.remainingBatches -= 1
-                if self.currentBatch < len(self.lotes):
-                    self.currentProcessIndex = 0
-                    self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
-                    for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+                self.elapsedTime = 0 #Reinicia el tiempo transcurrido del proceso a 0
+                self.remainingTime = self.current_process['tiempo'] #Reinicia el tiempo restante del proceso al tiempo estimado
+            else: #Si no hay procesos pendientes en el lote
+                self.currentBatch += 1 #Cambia al siguiente lote
+                self.remainingBatches -= 1 #Disminuye el número de lotes pendientes
+                if self.currentBatch < len(self.lotes): #Si hay lotes pendientes
+                    self.currentProcessIndex = 0 #Reinicia el índice del proceso actual
+                    self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex] #Cambia el proceso actual
+                    for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]: #Muestra los procesos pendientes del lote
                         self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
-                    self.elapsedTime = 0
-                    self.remainingTime = self.current_process['tiempo']
-                else:
-                    self.timer.stop()
-                    self.finishedButton.show()
+                    self.elapsedTime = 0 #Reinicia el tiempo transcurrido del proceso a 0
+                    self.remainingTime = self.current_process['tiempo'] #Reinicia el tiempo restante del proceso al tiempo estimado
+                else: #Si no hay lotes pendientes
+                    self.timer.stop() #Detiene el timer
+                    self.finishedButton.show() #Muestra el botón de finalizar
 
-    def showEvent(self, event):
+    def showEvent(self, event): #Método para asegurar que la ventana tenga el foco cuando se muestra
         super().showEvent(event)
         self.setFocus()  # Asegura que la ventana tenga el foco cuando se muestra
 
-    def focusInEvent(self, event):
+    def focusInEvent(self, event): #Método para asegurar que la ventana tenga el foco cuando se muestra
         super().focusInEvent(event)
-        self.setFocus()  # Asegura que la ventana recupere el foco cuando se enfoca
+        self.setFocus()
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_I:
+    def keyPressEvent(self, event): #Método para manejar los eventos de teclado
+        if event.key() == Qt.Key_I: #Si se presiona la tecla I se interrumpe el proceso
             self.interruptProcess()
-        elif event.key() == Qt.Key_E:
+        elif event.key() == Qt.Key_E: #Si se presiona la tecla E se marca el proceso como error
             self.errorProcess()
-        elif event.key() == Qt.Key_P:
-            self.pauseProcess()
-        elif event.key() == Qt.Key_C:
-            self.continueProcess()
+        elif event.key() == Qt.Key_P: #Si se presiona la tecla P se pausa el proceso
+            self.timer.stop()
+        elif event.key() == Qt.Key_C: #Si se presiona la tecla C se continúa el proceso
+            self.timer.start()
         else:
             super().keyPressEvent(event)
 
     def interruptProcess(self):
-        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[self.currentBatch]:
-            interrupted_process = self.lotes[self.currentBatch].pop(self.currentProcessIndex)
-            self.lotes[self.currentBatch].append(interrupted_process)
-            self.moveToNextProcess()
-
-    def errorProcess(self):
-        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[self.currentBatch]:
-            error_process = self.lotes[self.currentBatch].pop(self.currentProcessIndex)
-            self.logErrorProcess(error_process)
-            self.moveToNextProcess()
-
-    def pauseProcess(self):
-        self.timer.stop()
-
-    def continueProcess(self):
-        self.timer.start()
+        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[self.currentBatch]: # Si hay lotes y el lote actual tiene procesos
+            interrupted_process = self.lotes[self.currentBatch].pop(self.currentProcessIndex) #Se interrumpe el proceso actual sacándolo de la lista
+            self.lotes[self.currentBatch].append(interrupted_process) #Se añade el proceso interrumpido al final de la lista
+            self.moveToNextProcess() #Se pasa al siguiente proceso
 
     def moveToNextProcess(self):
-        if self.lotes and self.currentBatch < len(self.lotes) and self.currentBatchList.text():
-            self.currentBatchList.setText("Procesos pendientes en el lote Actual: ")
+        if self.lotes and self.currentBatch < len(self.lotes) and self.currentBatchList.text(): #Si hay lotes y el lote actual tiene procesos
+            self.currentBatchList.setText("Procesos pendientes en el lote Actual: ") #Reinicia la lista de procesos pendientes
+            # Si el índice del proceso actual es mayor o igual a la longitud del lote actual, se reinicia a 0
             self.currentProcessIndex = 0 if self.currentProcessIndex >= len(self.lotes[self.currentBatch]) else self.currentProcessIndex
             self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
-            for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
+            for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]: #Muestra los procesos pendientes del lote
                 self.currentBatchList.setText(self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
             self.updateProcessDisplay()
 
-    def logErrorProcess(self, process):
-        rowPosition = self.finishedProcessTable.rowCount()
+    def updateProcessDisplay(self): #Actualiza las etiquetas con la información del proceso actual
+        self.elapsedTime = 0
+        self.remainingTime = self.current_process['tiempo']
+        self.updateLabels()
+
+    def errorProcess(self): #Marca el proceso actual como error
+        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[self.currentBatch]: #Si hay lotes y el lote actual tiene procesos
+            error_process = self.lotes[self.currentBatch].pop(self.currentProcessIndex) #Se saca el proceso actual de la lista
+            self.logErrorProcess(error_process) #Se marca el proceso como error
+            self.moveToNextProcess() #Se pasa al siguiente proceso
+
+    def logErrorProcess(self, process): #Marca el proceso como error en la tabla de procesos terminados
+        rowPosition = self.finishedProcessTable.rowCount() #Fila en la que se insertará el proceso terminado
+        #Inserta el proceso en la tabla
         self.finishedProcessTable.insertRow(rowPosition)
         self.finishedProcessTable.setItem(rowPosition, 0, QTableWidgetItem(str(process['id'])))
         self.finishedProcessTable.setItem(rowPosition, 1, QTableWidgetItem(process['operacion']))
         self.finishedProcessTable.setItem(rowPosition, 2, QTableWidgetItem("ERROR"))
-
-    def updateProcessDisplay(self):
-        self.elapsedTime = 0
-        self.remainingTime = self.current_process['tiempo']
-        self.updateProcessLabels()
-
-    def updateProcessLabels(self):
-        self.currentProcessIdLabel.setText(f"ID: {self.current_process['id']}")
-        self.currentProcessOperationLabel.setText(f"Operación: {self.current_process['operacion']}")
-        self.currentProcessTimeLabel.setText(f"Tiempo estimado: {self.current_process['tiempo']}")
-        self.elapsedTimeLabel.setText(f"Tiempo Transcurrido de Proceso: {self.elapsedTime}")
-        self.remainingTimeLabel.setText(f"Tiempo Restante de Proceso: {self.remainingTime}")
 
     def divideInBatches(self): #divide los procesos en lotes de 3
         self.lotes = [] #Lista para guardar los lotes
