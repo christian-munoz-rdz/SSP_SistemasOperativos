@@ -43,9 +43,26 @@ class FirstWindow(QMainWindow):
         for i in range(1, self.spn_nprocesos.value()+1):
             self.procesos.append({
                 "id": i,
-                "tiempo": random.randint(7, 18),
-                "operacion": f"{random.randint(1, 100)} {random.choice(operaciones)} {random.randint(1, 100)}"
+                "tiempo_maximo": random.randint(7, 18),
+                "tiempo_transcurrido": 0,
+                "tiempo_restante": None,
+                "tiempo_bloqueo": 0,
+                "operacion": f"{random.randint(1, 100)} {random.choice(operaciones)} {random.randint(1, 100)}",
+                "resultado": None,
+                "estado": "nuevo",
+                "tiempo_llegada": 0,
+                "tiempo_finalizacion": 0,
+                "tiempo_retorno": 0,
+                "first_response": False,
+                "tiempo_respuesta": 0,
+                "tiempo_espera": 0,
+                "tiempo_servicio": 0
             })
+
+        #Obtener los resultados de las operaciones
+        for proceso in self.procesos:
+            proceso['resultado'] = eval(proceso['operacion'])
+            proceso['tiempo_restante'] = proceso['tiempo_maximo']
 
         # Crear la nueva ventana donde se ejecutarán los procesos
         self.newWindow = ExecuteProcessWindow(self.procesos)
@@ -67,7 +84,7 @@ class ExecuteProcessWindow(QMainWindow):
 
     def initUI(self):
 
-        globalMaxTime = sum(tiempo['tiempo'] for tiempo in self.procesos)  # Tiempo máximo global
+        globalMaxTime = sum(tiempo['tiempo_maximo'] for tiempo in self.procesos)  # Tiempo máximo global
 
         # Contenedor central y layout
         centralWidget = QWidget(self)
@@ -76,6 +93,7 @@ class ExecuteProcessWindow(QMainWindow):
         ready_current_Vlayout = QVBoxLayout()
         finished_Vlayout = QVBoxLayout()
         processtime_Vlayout = QVBoxLayout()
+        self.vlyt_btns_spin = QVBoxLayout()
 
         '''Interfaces de procesos en nuevo, listo, bloqueado y en ejecución'''
 
@@ -85,7 +103,7 @@ class ExecuteProcessWindow(QMainWindow):
 
         #Tabla para mostrar los procesos en listo
         self.processesInReadyTable = QTableWidget(0, 3, self)
-        self.processesInReadyTable.setHorizontalHeaderLabels(["ID", "T. Maximo", "T. Transcurrido"])
+        self.processesInReadyTable.setHorizontalHeaderLabels(["ID", "T. Maximo", "T. Restante"])
         self.processesInReadyTable.verticalHeader().setVisible(False)
         self.processesInReadyTable.setRowCount(0)
 
@@ -98,14 +116,14 @@ class ExecuteProcessWindow(QMainWindow):
 
         #Tabla y labels para mostrar el proceso en ejecución
         self.currentProcessLabel = QLabel("Proceso actual:", self)
-        self.currentProcessTable = QTableWidget(0, 2, self)
-        self.currentProcessTable.setHorizontalHeaderLabels(["ID", "Operación"])
+        self.currentProcessTable = QTableWidget(0, 4, self)
+        self.currentProcessTable.setHorizontalHeaderLabels(["ID", "Operación", "T. Transcurrido", "T. Restante"])
         self.currentProcessTable.verticalHeader().setVisible(False)
         self.currentProcessTable.setRowCount(0)
         #Labels para mostrar el tiempo de los procesos
         self.currentProcessTimeLabel = QLabel("Tiempo estimado: ", self)
-        self.elapsedTimeLabel = QLabel("Tiempo Transcurrido de Proceso: ", self)
-        self.remainingTimeLabel = QLabel("Tiempo Restante de Proceso: ", self)
+        #self.elapsedTimeLabel = QLabel("Tiempo Transcurrido de Proceso: ", self)
+        #self.remainingTimeLabel = QLabel("Tiempo Restante de Proceso: ", self)
 
         #Añadir widgets al layout de procesos en nuevo, listo, bloqueado y en ejecución
         ready_current_Vlayout.addWidget(self.processesInNewLabel)
@@ -116,8 +134,8 @@ class ExecuteProcessWindow(QMainWindow):
         ready_current_Vlayout.addWidget(self.currentProcessLabel)
         ready_current_Vlayout.addWidget(self.currentProcessTable)
         ready_current_Vlayout.addWidget(self.currentProcessTimeLabel)
-        ready_current_Vlayout.addWidget(self.elapsedTimeLabel)
-        ready_current_Vlayout.addWidget(self.remainingTimeLabel)
+        #ready_current_Vlayout.addWidget(self.elapsedTimeLabel)
+        #ready_current_Vlayout.addWidget(self.remainingTimeLabel)
 
         '''Interfaces para mostrar los procesos terminados'''
 
@@ -126,8 +144,8 @@ class ExecuteProcessWindow(QMainWindow):
         self.globalTimeLabel = QLabel("Tiempo Global Transcurrido: ", self)
         self.finishedProcessLabel = QLabel("Procesos Terminados:", self)
         #Tabla para mostrar los procesos terminados
-        self.finishedProcessTable = QTableWidget(0, 4, self)
-        self.finishedProcessTable.setHorizontalHeaderLabels(["ID", "Operación", "Resultado", "Tiempo"])
+        self.finishedProcessTable = QTableWidget(0, 3, self)
+        self.finishedProcessTable.setHorizontalHeaderLabels(["ID", "Operación", "Resultado"])
         self.finishedProcessTable.verticalHeader().setVisible(False)
         self.finishedProcessTable.setRowCount(0)
 
@@ -155,12 +173,30 @@ class ExecuteProcessWindow(QMainWindow):
         processtime_Vlayout.addWidget(self.processTimeTable)
         processtime_Vlayout.addWidget(self.finishedButton)
 
+        ''''Botones de pausa, continuar, interrupción y error'''
+
+        #Crear botones
+        self.pauseButton = QPushButton("Pausar", self)
+        self.pauseButton.clicked.connect(self.pauseProcess)
+        self.continueButton = QPushButton("Continuar", self)
+        self.continueButton.clicked.connect(self.continueProcess)
+        self.interruptButton = QPushButton("Interrumpir Proceso", self)
+        self.interruptButton.clicked.connect(self.interruptProcess)
+        self.errorButton = QPushButton("Error en Proceso", self)
+        self.errorButton.clicked.connect(self.errorProcess)
+
+        #Añadir botones al layout
+        self.vlyt_btns_spin.addWidget(self.pauseButton)
+        self.vlyt_btns_spin.addWidget(self.continueButton)
+        self.vlyt_btns_spin.addWidget(self.interruptButton)
+        self.vlyt_btns_spin.addWidget(self.errorButton)
 
         # Añadir layouts al contenedor central
         globalHlayout.addLayout(ready_current_Vlayout)
         globalHlayout.addLayout(finished_Vlayout)
         globalHlayout.addLayout(processtime_Vlayout)
         centralWidget.setLayout(globalHlayout)
+        globalHlayout.addLayout(self.vlyt_btns_spin)
 
         #ocultamos el boton de finalizar
         self.finishedButton.hide()
@@ -174,15 +210,25 @@ class ExecuteProcessWindow(QMainWindow):
         self.timer.start(1000)  # Actualiza cada segundo
 
     def loop(self):
+
         # Verificar si hay un proceso actual en ejecución
         if self.currentProcess:
             # Actualizar las variables de tiempo de los procesos
             self.globalTime += 1  # Aumenta el reloj global en 1
             self.elapsedTime += 1  # Aumenta el tiempo transcurrido del proceso actual
             self.remainingTime -= 1  # Disminuye el tiempo restante del proceso actual
+            self.currentProcess['tiempo_restante'] -= 1  # Disminuye el tiempo restante del proceso actual
+            self.currentProcess['tiempo_transcurrido'] += 1 # Aumenta el tiempo transcurrido del proceso actual
+            self.currentProcess['tiempo_servicio'] += 1
+
+            self.currentProcessTable.setItem(0, 2, QTableWidgetItem(str(self.currentProcess['tiempo_transcurrido'])))
+            self.currentProcessTable.setItem(0, 3, QTableWidgetItem(str(self.currentProcess['tiempo_restante'])))
 
             # Verificar si el proceso actual ha terminado
             if self.remainingTime <= 0:
+                self.currentProcess['estado'] = 'terminado'
+                self.currentProcess['tiempo_finalizacion'] = self.globalTime
+                self.currentProcess['tiempo_retorno'] = self.currentProcess['tiempo_finalizacion'] - self.currentProcess['tiempo_llegada']
                 # Mover el proceso actual a la lista de procesos terminados
                 self.finsihedProcesses.append(self.currentProcess)
                 # Reiniciar variables para el próximo proceso
@@ -193,26 +239,66 @@ class ExecuteProcessWindow(QMainWindow):
 
         # Cargar procesos en la lista de listos si hay espacio y aún hay procesos por cargar
         while len(self.processesInReady) < 3 and self.procesos:
-            self.processesInReady.append(self.procesos.pop(0))
+            proceso_listo = self.procesos.pop(0)
+            proceso_listo['estado'] = 'listo'
+            proceso_listo['tiempo_llegada'] = self.globalTime
+            self.processesInReady.append(proceso_listo)
+
+        for proceso in self.processesInReady:
+            proceso['tiempo_espera'] += 1
+            proceso['tiempo_servicio'] += 1
 
         # Si no hay un proceso en ejecución y hay procesos en la lista de listos, cargar el próximo proceso
         if not self.currentProcess and self.processesInReady:
             self.currentProcessUpdate()
 
+        if self.processesBlocked:
+            # Manejo de procesos bloqueados
+            for proceso in self.processesBlocked:
+                proceso['tiempo_bloqueo'] -= 1
+                proceso['tiempo_servicio'] += 1
+                if proceso['tiempo_bloqueo'] <= 0:
+                    if self.processesInReady and len(self.processesInReady) < 3: # Si hay espacio en la cola de listos se carga el proceso
+                        proceso['estado'] = 'listo'
+                        self.processesInReady.append(proceso)
+                    else: # Si no hay espacio en la cola de listos se agregará a la cola de nuevos
+                        proceso['estado'] = 'nuevo'
+                        self.procesos.insert(0, proceso)
+            # Eliminar procesos bloqueados que ya no están bloqueados
+            self.processesBlocked = [p for p in self.processesBlocked if p['tiempo_bloqueo'] > 0]
+
         self.updateRFTables()
         self.updateLabels()
+
+        # Verificar si todos los procesos han terminado
+        if not self.procesos and not self.processesInReady and not self.currentProcess and not self.processesBlocked:
+            #Limpiar tabla de proceso en ejecución
+            self.currentProcessTable.setRowCount(0)
+
+            # Actualizar la tabla de tiempos de los procesos
+            self.processTimeTable.setRowCount(len(self.finsihedProcesses))
+            for i, proceso in enumerate(self.finsihedProcesses):
+                self.processTimeTable.setItem(i, 0, QTableWidgetItem(str(proceso['id'])))
+                self.processTimeTable.setItem(i, 1, QTableWidgetItem(str(proceso['tiempo_llegada'])))
+                self.processTimeTable.setItem(i, 2, QTableWidgetItem(str(proceso['tiempo_finalizacion'])))
+                self.processTimeTable.setItem(i, 3, QTableWidgetItem(str(proceso['tiempo_retorno'])))
+                self.processTimeTable.setItem(i, 4, QTableWidgetItem(str(proceso['tiempo_respuesta'])))
+                self.processTimeTable.setItem(i, 5, QTableWidgetItem(str(proceso['tiempo_espera'])))
+                self.processTimeTable.setItem(i, 6, QTableWidgetItem(str(proceso['tiempo_servicio'])))
+            self.finishedButton.show()
+            self.timer.stop()
 
     def updateLabels(self):
         #Actualizar Labels
         self.globalTimeLabel.setText(f"Reloj Global: {self.globalTime}")
         #Si tenemos información para mostrar
         if self.currentProcess:
-            self.elapsedTimeLabel.setText(f"Tiempo Transcurrido de Proceso: {self.elapsedTime}")
-            self.remainingTimeLabel.setText(f"Tiempo Restante de Proceso: {self.remainingTime}")
+            #self.elapsedTimeLabel.setText(f"Tiempo Transcurrido de Proceso: {self.elapsedTime}")
+            #self.remainingTimeLabel.setText(f"Tiempo Restante de Proceso: {self.remainingTime}")
             self.currentProcessTimeLabel.setText(f"Tiempo estimado: {self.currentProcessTime}")
         else:
-            self.elapsedTimeLabel.setText("Tiempo Transcurrido de Proceso: ")
-            self.remainingTimeLabel.setText("Tiempo Restante de Proceso: ")
+            #self.elapsedTimeLabel.setText("Tiempo Transcurrido de Proceso: ")
+            #self.remainingTimeLabel.setText("Tiempo Restante de Proceso: ")
             self.currentProcessTimeLabel.setText("Tiempo estimado: ")
         self.processesInNewLabel.setText(f"Procesos en Nuevo: {len(self.procesos)}")
         self.processesInReadyLabel.setText(f"Procesos en Listo: {len(self.processesInReady)}")
@@ -222,7 +308,11 @@ class ExecuteProcessWindow(QMainWindow):
         if self.processesInReady:
             # Cargar el próximo proceso de la lista de listos
             self.currentProcess = self.processesInReady.pop(0)
-            self.currentProcessTime = self.currentProcess['tiempo']
+            self.currentProcess['estado'] = 'ejecucion'
+            if not self.currentProcess['first_response']:
+                self.currentProcess['tiempo_respuesta'] = self.globalTime - self.currentProcess['tiempo_llegada']
+                self.currentProcess['first_response'] = True
+            self.currentProcessTime = self.currentProcess['tiempo_restante']
             self.remainingTime = self.currentProcessTime
             self.elapsedTime = 0  # Reiniciar el tiempo transcurrido para el nuevo proceso
 
@@ -238,96 +328,45 @@ class ExecuteProcessWindow(QMainWindow):
         self.processesInReadyTable.setRowCount(len(self.processesInReady))
         for i, proceso in enumerate(self.processesInReady):
             self.processesInReadyTable.setItem(i, 0, QTableWidgetItem(str(proceso['id'])))
-            self.processesInReadyTable.setItem(i, 1, QTableWidgetItem(str(proceso['tiempo'])))
-            self.processesInReadyTable.setItem(i, 2, QTableWidgetItem(str(proceso['tiempo'])))
+            self.processesInReadyTable.setItem(i, 1, QTableWidgetItem(str(proceso['tiempo_maximo'])))
+            self.processesInReadyTable.setItem(i, 2, QTableWidgetItem(str(proceso['tiempo_restante'])))
 
         # Actualizar la tabla de procesos terminados
         self.finishedProcessTable.setRowCount(len(self.finsihedProcesses))
         for i, proceso in enumerate(self.finsihedProcesses):
             self.finishedProcessTable.setItem(i, 0, QTableWidgetItem(str(proceso['id'])))
             self.finishedProcessTable.setItem(i, 1, QTableWidgetItem(proceso['operacion']))
-            self.finishedProcessTable.setItem(i, 2, QTableWidgetItem(str(eval(proceso['operacion']))))
-            self.finishedProcessTable.setItem(i, 3, QTableWidgetItem(str(proceso['tiempo'])))
+            self.finishedProcessTable.setItem(i, 2, QTableWidgetItem(str(proceso['resultado'])))
 
-    def showEvent(self, event): #Método para asegurar que la ventana tenga el foco cuando se muestra
-        super().showEvent(event)
-        self.setFocus()  # Asegura que la ventana tenga el foco cuando se muestra
+        # Actualizar la tabla de procesos bloqueados
+        self.processesBlockedTable.setRowCount(len(self.processesBlocked))
+        for i, proceso in enumerate(self.processesBlocked):
+            self.processesBlockedTable.setItem(i, 0, QTableWidgetItem(str(proceso['id'])))
+            self.processesBlockedTable.setItem(i, 1, QTableWidgetItem(str(proceso['tiempo_bloqueo'])))
 
-    def focusInEvent(self, event): #Método para asegurar que la ventana tenga el foco cuando se muestra
-        super().focusInEvent(event)
-        self.setFocus()
+    def pauseProcess(self):
+        self.timer.stop()
 
-    def keyPressEvent(self, event): #Método para manejar los eventos de teclado
-        if event.key() == Qt.Key_I: #Si se presiona la tecla I se interrumpe el proceso
-            self.interruptProcess()
-        elif event.key() == Qt.Key_E: #Si se presiona la tecla E se marca el proceso como error
-            self.errorProcess()
-        elif event.key() == Qt.Key_P: #Si se presiona la tecla P se pausa el proceso
-            self.timer.stop()
-        elif event.key() == Qt.Key_C: #Si se presiona la tecla C se continúa el proceso
-            self.timer.start()
-        else:
-            super().keyPressEvent(event)
+    def continueProcess(self):
+        self.timer.start()
 
     def interruptProcess(self):
-        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[self.currentBatch]: # Si hay lotes y el lote actual tiene procesos
-            interrupted_process = self.lotes[self.currentBatch].pop(self.currentProcessIndex) #Se interrumpe el proceso actual sacándolo de la lista
-            self.lotes[self.currentBatch].append(interrupted_process) #Se añade el proceso interrumpido al final de la lista
-            self.moveToNextProcess() #Se pasa al siguiente proceso
+        if self.currentProcess:
+            self.currentProcess['estado'] = 'bloqueado'
+            self.currentProcess['tiempo_bloqueo'] = 10  # Tiempo que el proceso permanecerá bloqueado
+            self.processesBlocked.append(self.currentProcess)
+            self.currentProcess = None
+            self.updateRFTables()
 
-    def moveToNextProcess(self):
-        # Reinicia la lista de procesos pendientes
-        if self.lotes and self.currentBatch < len(self.lotes):
-            # Verifica si el lote actual aún tiene procesos
-            if len(self.lotes[self.currentBatch]) > 0:
-                # Ajusta el índice del proceso actual si es necesario
-                self.currentProcessIndex = min(self.currentProcessIndex, len(self.lotes[self.currentBatch]) - 1)
-                self.current_process = self.lotes[self.currentBatch][self.currentProcessIndex]
-                # Actualiza la visualización de procesos pendientes
-                for proceso in self.lotes[self.currentBatch][self.currentProcessIndex:]:
-                    self.currentBatchList.setText(
-                        self.currentBatchList.text() + "\n" + f"ID: {proceso['id']} | Tiempo: {proceso['tiempo']}")
-                self.updateProcessDisplay()
-            else:
-                # Si el lote está vacío, intenta mover al siguiente lote si hay más lotes disponibles
-                if self.currentBatch + 1 < len(self.lotes):
-                    self.currentBatch += 1
-                    self.currentProcessIndex = 0
-                    self.moveToNextProcess()  # Llama recursivamente para manejar el siguiente lote
-                else:
-                    # Si no hay más lotes, finaliza el procesamiento
-                    self.timer.stop()
-                    self.finishedButton.show()
-
-    def updateProcessDisplay(self): #Actualiza las etiquetas con la información del proceso actual
-        self.elapsedTime = 0
-        self.remainingTime = self.current_process['tiempo']
-        self.updateLabels()
-
-    def errorProcess(self):  # Marca el proceso actual como error
-        if self.lotes and self.currentBatch < len(self.lotes) and self.lotes[
-            self.currentBatch]:  # Si hay lotes y el lote actual tiene procesos
-            error_process = self.lotes[self.currentBatch].pop(
-                self.currentProcessIndex)  # Se saca el proceso actual de la lista
-            self.logErrorProcess(error_process)  # Se marca el proceso como error
-            if self.currentProcessIndex >= len(self.lotes[self.currentBatch]):  # Ajusta el índice si es necesario
-                self.currentProcessIndex = max(0, len(self.lotes[self.currentBatch]) - 1)
-            self.moveToNextProcess()  # Se pasa al siguiente proceso
-
-    def logErrorProcess(self, process):
-        rowPosition = self.finishedProcessTable.rowCount()
-        self.finishedProcessTable.insertRow(rowPosition)
-        self.finishedProcessTable.setItem(rowPosition, 0, QTableWidgetItem(str(process['id'])))
-        self.finishedProcessTable.setItem(rowPosition, 1, QTableWidgetItem(process['operacion']))
-        self.finishedProcessTable.setItem(rowPosition, 2, QTableWidgetItem("ERROR"))
-
-        # Verificar si el proceso es el inicio o el fin de un lote
-        if self.currentProcessIndex == 0:  # Primer proceso del lote
-            self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Inicio de Lote"))
-        if len(self.lotes[self.currentBatch]) == 0 or self.currentProcessIndex == len(self.lotes[self.currentBatch]):  # Último proceso del lote
-            self.finishedProcessTable.setItem(rowPosition, 3, QTableWidgetItem("Fin de Lote"))
-            if self.remainingBatches > 0:
-                self.remainingBatches -= 1  # Ajustar los lotes restantes si es el fin de un lote
+    def errorProcess(self):
+        if self.currentProcess:
+            self.currentProcess['resultado'] = 'error'  # Marcamos el proceso como terminado por error
+            self.currentProcess['estado'] = 'terminado'
+            self.currentProcess['tiempo_finalizacion'] = self.globalTime
+            self.currentProcess['tiempo_retorno'] = self.currentProcess['tiempo_finalizacion'] - self.currentProcess['tiempo_llegada']
+            self.finsihedProcesses.append(self.currentProcess)
+            self.currentProcess = None
+            self.updateRFTables()
 
 
 if __name__ == "__main__":
