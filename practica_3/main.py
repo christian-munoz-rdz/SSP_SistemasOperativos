@@ -211,6 +211,9 @@ class ExecuteProcessWindow(QMainWindow):
 
     def loop(self):
 
+        # Calcular la suma de las longitudes de las colas de Listo, Bloqueado y si hay un proceso en Ejecución
+        total_en_memoria = len(self.processesInReady) + len(self.processesBlocked) + (1 if self.currentProcess else 0)
+        
         # Verificar si hay un proceso actual en ejecución
         if self.currentProcess:
             # Actualizar las variables de tiempo de los procesos
@@ -236,13 +239,15 @@ class ExecuteProcessWindow(QMainWindow):
                 self.elapsedTime = 0
                 # Intentar cargar el próximo proceso
                 self.currentProcessUpdate()
+                total_en_memoria -= 1  # Actualizar el total en memoria ya que el proceso terminará
 
         # Cargar procesos en la lista de listos si hay espacio y aún hay procesos por cargar
-        while len(self.processesInReady) < 3 and self.procesos:
+        while len(self.processesInReady) < 3 and self.procesos and total_en_memoria < 3:
             proceso_listo = self.procesos.pop(0)
             proceso_listo['estado'] = 'listo'
             proceso_listo['tiempo_llegada'] = self.globalTime
             self.processesInReady.append(proceso_listo)
+            total_en_memoria += 1
 
         for proceso in self.processesInReady:
             proceso['tiempo_espera'] += 1
@@ -252,20 +257,26 @@ class ExecuteProcessWindow(QMainWindow):
         if not self.currentProcess and self.processesInReady:
             self.currentProcessUpdate()
 
-        if self.processesBlocked:
-            # Manejo de procesos bloqueados
-            for proceso in self.processesBlocked:
-                proceso['tiempo_bloqueo'] -= 1
+        # Actualización de la lógica para el manejo de procesos bloqueados
+        nuevos_procesos_bloqueados = []
+        for proceso in self.processesBlocked:
+            if proceso['tiempo_bloqueo'] > 0:
+                proceso['tiempo_bloqueo'] -= 1  # Solo decrementamos si es mayor que 0
                 proceso['tiempo_servicio'] += 1
-                if proceso['tiempo_bloqueo'] <= 0:
-                    if self.processesInReady and len(self.processesInReady) < 3: # Si hay espacio en la cola de listos se carga el proceso
-                        proceso['estado'] = 'listo'
-                        self.processesInReady.append(proceso)
-                    else: # Si no hay espacio en la cola de listos se agregará a la cola de nuevos
-                        proceso['estado'] = 'nuevo'
-                        self.procesos.insert(0, proceso)
-            # Eliminar procesos bloqueados que ya no están bloqueados
-            self.processesBlocked = [p for p in self.processesBlocked if p['tiempo_bloqueo'] > 0]
+
+            # Comprobamos si el proceso puede pasar a listo
+            if proceso['tiempo_bloqueo'] <= 0:
+                if total_en_memoria < 3:  # Aseguramos que hay espacio en memoria antes de mover a listo
+                    proceso['estado'] = 'listo'
+                    self.processesInReady.append(proceso)  # Actualizamos el total en memoria
+                else:
+                    # Si no hay espacio, el proceso permanece bloqueado pero sin decrementar más su tiempo
+                    proceso['tiempo_bloqueo'] = 0
+                    nuevos_procesos_bloqueados.append(proceso)
+            else:
+                nuevos_procesos_bloqueados.append(proceso)
+
+        self.processesBlocked = nuevos_procesos_bloqueados
 
         self.updateRFTables()
         self.updateLabels()
