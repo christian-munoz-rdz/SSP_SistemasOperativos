@@ -266,13 +266,8 @@ class ExecuteProcessWindow(QMainWindow):
 
             # Comprobamos si el proceso puede pasar a listo
             if proceso['tiempo_bloqueo'] <= 0:
-                if total_en_memoria < 3:  # Aseguramos que hay espacio en memoria antes de mover a listo
-                    proceso['estado'] = 'listo'
-                    self.processesInReady.append(proceso)  # Actualizamos el total en memoria
-                else:
-                    # Si no hay espacio, el proceso permanece bloqueado pero sin decrementar más su tiempo
-                    proceso['tiempo_bloqueo'] = 0
-                    nuevos_procesos_bloqueados.append(proceso)
+                proceso['estado'] = 'listo'
+                self.processesInReady.append(proceso)  # Actualizamos el total en memoria
             else:
                 nuevos_procesos_bloqueados.append(proceso)
 
