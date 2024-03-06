@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QVBoxLayout, QWidget,QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QVBoxLayout, QWidget,QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem, QMessageBox
 from PyQt5.QtCore import QTimer, Qt
 import random
 import sys
@@ -81,6 +81,7 @@ class ExecuteProcessWindow(QMainWindow):
         self.processesBlocked = [] #Lista para guardar los procesos bloqueados
         self.currentProcess = None #Proceso actual
         self.finsihedProcesses = [] #Lista para guardar los procesos terminados
+        self.lastProcessID = self.procesos[-1]['id'] #ID del último proceso
 
     def initUI(self):
 
@@ -184,12 +185,15 @@ class ExecuteProcessWindow(QMainWindow):
         self.interruptButton.clicked.connect(self.interruptProcess)
         self.errorButton = QPushButton("Error en Proceso", self)
         self.errorButton.clicked.connect(self.errorProcess)
+        self.btn_agregarProceso = QPushButton("Agregar Nuevo Proceso", self)
+        self.btn_agregarProceso.clicked.connect(self.agregarProceso)
 
         #Añadir botones al layout
         self.vlyt_btns_spin.addWidget(self.pauseButton)
         self.vlyt_btns_spin.addWidget(self.continueButton)
         self.vlyt_btns_spin.addWidget(self.interruptButton)
         self.vlyt_btns_spin.addWidget(self.errorButton)
+        self.vlyt_btns_spin.addWidget(self.btn_agregarProceso)
 
         # Añadir layouts al contenedor central
         globalHlayout.addLayout(ready_current_Vlayout)
@@ -373,6 +377,37 @@ class ExecuteProcessWindow(QMainWindow):
             self.finsihedProcesses.append(self.currentProcess)
             self.currentProcess = None
             self.updateRFTables()
+
+    def agregarProceso(self):
+        operaciones = ["+", "-", "*", "/", "%", "**"]
+        proceso_nuevo = {
+            "id": self.lastProcessID + 1,
+            "tiempo_maximo": random.randint(7, 18),
+            "tiempo_transcurrido": 0,
+            "tiempo_restante": None,
+            "tiempo_bloqueo": 0,
+            "operacion": f"{random.randint(1, 100)} {random.choice(operaciones)} {random.randint(1, 100)}",
+            "resultado": None,
+            "estado": "nuevo",
+            "tiempo_llegada": 0,
+            "tiempo_finalizacion": 0,
+            "tiempo_retorno": 0,
+            "first_response": False,
+            "tiempo_respuesta": 0,
+            "tiempo_espera": 0,
+            "tiempo_servicio": 0
+        }
+        proceso_nuevo['resultado'] = eval(proceso_nuevo['operacion'])
+        proceso_nuevo['tiempo_restante'] = proceso_nuevo['tiempo_maximo']
+        self.procesos.append(proceso_nuevo)
+        self.lastProcessID += 1
+        #QmessageBox para mostrar una tabla con el proceso agregado
+        msg = QMessageBox()
+        msg.setWindowTitle("Proceso Agregado")
+        msg.setText(f"Proceso Agregado: {proceso_nuevo['id']}")
+        msg.setInformativeText(f"Operación: {proceso_nuevo['operacion']}")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
 
 
 if __name__ == "__main__":
