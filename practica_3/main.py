@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication, QLabel, QPushButton, QVBoxLayout, QWidget,QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem, QMessageBox
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, pyqtSignal
 import random
 import sys
 
@@ -187,6 +187,8 @@ class ExecuteProcessWindow(QMainWindow):
         self.errorButton.clicked.connect(self.errorProcess)
         self.btn_agregarProceso = QPushButton("Agregar Nuevo Proceso", self)
         self.btn_agregarProceso.clicked.connect(self.agregarProceso)
+        self.bcpTable = QPushButton("Tabla de Procesos", self)
+        self.bcpTable.clicked.connect(self.openBCPTable)
 
         #Añadir botones al layout
         self.vlyt_btns_spin.addWidget(self.pauseButton)
@@ -194,6 +196,7 @@ class ExecuteProcessWindow(QMainWindow):
         self.vlyt_btns_spin.addWidget(self.interruptButton)
         self.vlyt_btns_spin.addWidget(self.errorButton)
         self.vlyt_btns_spin.addWidget(self.btn_agregarProceso)
+        self.vlyt_btns_spin.addWidget(self.bcpTable)
 
         # Añadir layouts al contenedor central
         globalHlayout.addLayout(ready_current_Vlayout)
@@ -363,7 +366,7 @@ class ExecuteProcessWindow(QMainWindow):
     def interruptProcess(self):
         if self.currentProcess:
             self.currentProcess['estado'] = 'bloqueado'
-            self.currentProcess['tiempo_bloqueo'] = 10  # Tiempo que el proceso permanecerá bloqueado
+            self.currentProcess['tiempo_bloqueo'] = 9  # Tiempo que el proceso permanecerá bloqueado
             self.processesBlocked.append(self.currentProcess)
             self.currentProcess = None
             self.updateRFTables()
@@ -408,6 +411,83 @@ class ExecuteProcessWindow(QMainWindow):
         msg.setInformativeText(f"Operación: {proceso_nuevo['operacion']}")
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
+
+    def openBCPTable(self):
+        bcp_list = self.finsihedProcesses + [self.currentProcess] + self.processesInReady + self.processesBlocked + self.procesos
+        self.bcpTableWindow = BCPTable(bcp_list)
+        self.bcpTableWindow.closedSignal.connect(self.onBCPTableClosed)
+        self.bcpTableWindow.show()
+        self.pauseProcess()
+
+    def onBCPTableClosed(self):
+        self.continueProcess()
+
+
+class BCPTable(QWidget):
+    closedSignal = pyqtSignal()
+    def __init__(self, procesos=None, parent=None, ):
+        super(BCPTable, self).__init__(parent)
+        self.setWindowTitle("Tabla de Procesos")
+        self.procesos = procesos
+        self.setGeometry(100, 100, 800, 600)
+        self.initUI()
+
+    def initUI(self):
+        # Contenedor principal y layout
+        self.mainLayout = QVBoxLayout()
+        self.setLayout(self.mainLayout)
+
+        #Tabla para mostrar los procesos
+        self.bcpTable = QTableWidget(0, 12, self)
+        self.mainLayout.addWidget(self.bcpTable)
+        self.bcpTable.setHorizontalHeaderLabels(["ID", "Estado", "Operación", "Resultado", "T. Bloqueado", "T. LLegada", "T. Finalización",
+                                                 "T. Retorno", "T. Espera", "T. Servicio", "T. Restante en CPU", "T. Respuesta"])
+        self.bcpTable.verticalHeader().setVisible(False)
+        self.bcpTable.setRowCount(0)
+        for proceso in self.procesos:
+            self.bcpTable.setRowCount(self.bcpTable.rowCount() + 1)
+            self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 0, QTableWidgetItem(str(proceso['id'])))
+            self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 1, QTableWidgetItem(proceso['estado']))
+            if proceso['estado'] == "nuevo":
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 2, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 3, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 4, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 5, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 6, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 7, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 8, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 9, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 10, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 11, QTableWidgetItem(""))
+            else:
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 2, QTableWidgetItem(proceso['operacion']))
+                if proceso['estado'] == "terminado":
+                    if proceso['resultado'] != "error":
+                        self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 3, QTableWidgetItem(str(proceso['resultado'])))
+                    else:
+                        self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 3, QTableWidgetItem("Error"))
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 6, QTableWidgetItem(str(proceso['tiempo_finalizacion'])))
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 7, QTableWidgetItem(str(proceso['tiempo_retorno'])))
+                else:
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 3, QTableWidgetItem(""))
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 6, QTableWidgetItem(""))
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 7, QTableWidgetItem(""))
+                if proceso['estado'] == "bloqueado":
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 4, QTableWidgetItem(str(proceso['tiempo_bloqueo'])))
+                else:
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 4, QTableWidgetItem(""))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 5, QTableWidgetItem(str(proceso['tiempo_llegada'])))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 8, QTableWidgetItem(str(proceso['tiempo_espera'])))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 9, QTableWidgetItem(str(proceso['tiempo_servicio'])))
+                self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 10, QTableWidgetItem(str(proceso['tiempo_restante'])))
+                if proceso['first_response']:
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 11, QTableWidgetItem(str(proceso['tiempo_respuesta'])))
+                else:
+                    self.bcpTable.setItem(self.bcpTable.rowCount() - 1, 11, QTableWidgetItem(""))
+
+    def closeEvent(self, event):
+        self.closedSignal.emit()  # Emitir la señal al cerrar la ventana
+        super(BCPTable, self).closeEvent(event)
 
 
 if __name__ == "__main__":
